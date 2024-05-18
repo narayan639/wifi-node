@@ -1,37 +1,41 @@
 const express = require('express');
-const { exec } = require('child_process');
-const cors = require('cors');
+const { execSync } = require('child_process');
+const cors=require("cors")
 
 const app = express();
-const PORT = 5000;
-
-app.use(cors());
+const port = 5000;
+app.use(cors())
 
 app.get('/bssid', (req, res) => {
-  exec("iwlist wlan0 scan | grep 'Address: '", (err, stdout, stderr) => {
-    if (err) {
-      console.error(`Error: ${err.message}`);
-      res.status(500).json({ error: 'Could not retrieve BSSID' });
-      return;
-    }
-    if (stderr) {
-      console.error(`stderr: ${stderr}`);
-      res.status(500).json({ error: 'Could not retrieve BSSID' });
-      return;
-    }
-    
-    // Extract BSSID from the output
-    const lines = stdout.split('\n');
-    const bssidLine = lines.find(line => line.includes('Cell'));
-    if (bssidLine) {
-      const bssid = bssidLine.trim().split(' ')[4];
-      res.json({ bssid });
+    // Retrieve BSSID of the Wi-Fi network
+    const bssid = getWifiBSSID();
+
+    // Compare BSSID with the authorized BSSID
+    if (bssid) {
+        // Authorized BSSID
+        res.send(bssid);
     } else {
-      res.status(500).json({ error: 'Could not retrieve BSSID' });
+        // Unauthorized BSSID
+        res.status(403).send('no BSSID.');
     }
-  });
 });
 
-app.listen(PORT, () => {
-  console.log(`Server is running on http://localhost:${PORT}`);
+// Function to retrieve BSSID of the Wi-Fi network
+function getWifiBSSID() {
+    // Execute command to retrieve Wi-Fi connection information
+    const output = execSync('iw dev wlan0 link').toString();
+    console.log("o",output)
+
+    // Extract BSSID from the output
+    const matches = output.match(/Connected to ([\w:]+)/);
+    console.log("m",matches)
+    if (matches && matches.length > 1) {
+        return matches[1];
+    }
+
+    return null;
+}
+
+app.listen(port, () => {
+    console.log(`Server is listening at http://localhost:${port}`);
 });
